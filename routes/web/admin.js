@@ -94,11 +94,16 @@ router
   .get('/emails/:id', web.admin.emails.retrieve)
   .put('/emails/:id', web.admin.emails.update)
   .delete('/emails/:id', web.admin.emails.remove)
-
+  
   // payments
   .get('/payments', paginate.middleware(10, 50), web.admin.payments.list)
   .get('/payments/:id', web.admin.payments.retrieve)
   .post('/payments/:id/refund', web.admin.payments.refund)
-  .post('/free-credit', web.admin.payments.freeCredit);
+  .post('/free-credit', web.admin.payments.freeCredit)
+  
+  // enterprise
+  .get('/enterprise', web.admin.enterprise.dashboard)
+  .get('/enterprise/dashboard', web.admin.enterprise.dashboard)
+  .get('/enterprise/accounts', paginate.middleware(10, 50), web.admin.enterprise.list);
 
 module.exports = router;
