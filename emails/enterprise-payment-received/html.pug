@@ -1,0 +1,83 @@
+extends ../layout
+
+block content
+  .container.mt-3
+    .row
+      .col-12
+        .card.border-dark.d-block
+          h1.h5.card-header.text-center
+            = emoji("white_check_mark")
+            = " "
+            = t("Payment Received - Thank You!")
+          .card-body.p-0
+            a(href=config.urls.web)
+              img.img-fluid.d-block.align-top(
+                src=manifest("img/emails/domain-verified.gif"),
+                alt=""
+              )
+            .p-3
+              h1.h3.text-center!= t("Thank you %s!", account.primary_contact.name)
+              p.card-text.text-center!= t("We've successfully received your enterprise payment for %s.", account.company_name)
+              
+              .row.mt-4
+                .col-md-6
+                  h4= t("Payment Details")
+                  if account.payment_info
+                    ul.list-unstyled
+                      if account.payment_info.billing_cycle
+                        li.mb-2
+                          = emoji("calendar")
+                          = " "
+                          != t("Billing cycle: %s", titleize(account.payment_info.billing_cycle))
+                      if account.payment_info.next_billing_date
+                        li.mb-2
+                          = emoji("clock")
+                          = " "
+                          != t("Next billing: %s", dayjs(account.payment_info.next_billing_date).format('MMMM D, YYYY'))
+                      li.mb-2
+                        = emoji("credit_card")
+                        = " "
+                        = t("Payment method on file")
+                .col-md-6
+                  h4= t("Your Service")
+                  ul.list-unstyled
+                    li.mb-2
+                      = emoji("white_check_mark")
+                      = " "
+                      = t("Enterprise features active")
+                    li.mb-2
+                      = emoji("white_check_mark")
+                      = " "
+                      = t("Priority support included")
+                    li.mb-2
+                      = emoji("white_check_mark")
+                      = " "
+                      = t("99.99% uptime SLA")
+                    li.mb-2
+                      = emoji("white_check_mark")
+                      = " "
+                      = t("Dedicated account management")
+
+              .alert.alert-success.mt-4
+                h5.alert-heading
+                  = emoji("party")
+                  = " "
+                  = t("All Set!")
+                p.mb-0!= t("Your enterprise email service is fully active. Your team can now enjoy all premium features and priority support.")
+
+              .text-center.mt-4
+                a.btn.btn-lg.btn-primary(
+                  href=`${config.urls.web}/${locale}/my-account/billing`
+                )
+                  = t("View Billing")
+                = " "
+                a.btn.btn-lg.btn-outline-dark(
+                  href=`${config.urls.web}/${locale}/my-account`
+                )
+                  = t("My Account")
+                = " "
+                a.btn.btn-lg.btn-outline-success(
+                  href=`${config.urls.web}/${locale}/help?subject=Enterprise%20Support%20-%20${encodeURIComponent(account.company_name)}`
+                )
+                  = t("Contact Support")
+          .card-footer.small.text-muted.text-center= t("A detailed receipt has been sent to your billing contact. Questions? Our team is here to help 24/7.")

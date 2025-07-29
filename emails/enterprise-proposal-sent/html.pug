@@ -1,0 +1,76 @@
+extends ../layout
+
+block content
+  .container.mt-3
+    .row
+      .col-12
+        .card.border-dark.d-block
+          h1.h5.card-header.text-center
+            = emoji("envelope")
+            = " "
+            = t("Your Enterprise Proposal is Ready")
+          .card-body.p-0
+            a(href=config.urls.web)
+              img.img-fluid.d-block.align-top(
+                src=manifest("img/emails/welcome.gif"),
+                alt=""
+              )
+            .p-3
+              h1.h3.text-center!= t("Hello %s", account.primary_contact.name)
+              p.card-text!= t("We've prepared a customized enterprise email proposal for %s based on your requirements.", account.company_name)
+              
+              .row.mt-4
+                .col-md-6
+                  h4= t("Your Requirements")
+                  ul.list-unstyled
+                    if account.requirements.email_volume_monthly
+                      li
+                        = emoji("envelope")
+                        = " "
+                        != t("Monthly email volume: %s", account.requirements.email_volume_monthly.toLocaleString())
+                    if account.requirements.compliance_needs && account.requirements.compliance_needs.length > 0
+                      li
+                        = emoji("shield")
+                        = " "
+                        != t("Compliance: %s", account.requirements.compliance_needs.join(', '))
+                    if account.requirements.security_requirements && account.requirements.security_requirements.length > 0
+                      li
+                        = emoji("lock")
+                        = " "
+                        != t("Security: %s", account.requirements.security_requirements.join(', '))
+                .col-md-6
+                  h4= t("What's Included")
+                  ul.list-unstyled
+                    li
+                      = emoji("white_check_mark")
+                      = " "
+                      = t("Unlimited domains and aliases")
+                    li
+                      = emoji("white_check_mark")
+                      = " "
+                      = t("Enterprise-grade security")
+                    li
+                      = emoji("white_check_mark")
+                      = " "
+                      = t("Dedicated account manager")
+                    li
+                      = emoji("white_check_mark")
+                      = " "
+                      = t("99.99% uptime SLA")
+                    li
+                      = emoji("white_check_mark")
+                      = " "
+                      = t("24/7 priority support")
+
+              .text-center.mt-4
+                p.lead!= t("Ready to move forward? Let's schedule a call to review your proposal.")
+                a.btn.btn-lg.btn-primary(
+                  href=`${config.urls.web}/${locale}/help?subject=Enterprise%20Proposal%20Discussion%20-%20${encodeURIComponent(account.company_name)}`
+                )
+                  = t("Schedule Review Call")
+                = " "
+                a.btn.btn-lg.btn-outline-dark(
+                  href=`${config.urls.web}/${locale}/help?subject=Enterprise%20Questions%20-%20${encodeURIComponent(account.company_name)}`
+                )
+                  = t("Ask Questions")
+          .card-footer.small.text-muted.text-center= t("Our team will follow up within 1 business day to discuss next steps.")

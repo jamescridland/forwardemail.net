@@ -13,197 +13,64 @@ block body
     .row
       .col
         include ../../_breadcrumbs
-    
-    // Enterprise Overview Metrics
-    .row.mb-4
-      .col
-        h1.h3.mb-3.text-primary
-          i.fa.fa-building.me-2
-          = t("Enterprise Dashboard")
-    
-    .row.mb-4
-      .col-md-3.col-6.mb-3
-        .card.border-primary.h-100
-          .card-body.text-center
-            .display-4.text-primary.mb-2
-              i.fa.fa-building
-            h4.card-title.text-primary= t("Total Enterprise")
-            .display-6.font-weight-bold.text-dark= totalEnterprise.toLocaleString()
-            
-      .col-md-3.col-6.mb-3
-        .card.border-success.h-100
-          .card-body.text-center
-            .display-4.text-success.mb-2
-              i.fa.fa-chart-line
-            h4.card-title.text-success= t("New This Month")
-            .display-6.font-weight-bold.text-dark= newEnterpriseThisMonth.toLocaleString()
-            if parseFloat(growthRate) > 0
-              small.text-success
-                i.fa.fa-arrow-up.me-1
-                = `+${growthRate}%`
-            else if parseFloat(growthRate) < 0
-              small.text-danger
-                i.fa.fa-arrow-down.me-1
-                = `${growthRate}%`
-            else
-              small.text-muted= "0%"
-              
-      .col-md-3.col-6.mb-3
-        .card.border-info.h-100
-          .card-body.text-center
-            .display-4.text-info.mb-2
-              i.fa.fa-dollar-sign
-            h4.card-title.text-info= t("Total Revenue")
-            .display-6.font-weight-bold.text-dark= `$${(totalRevenue / 100).toLocaleString()}`
-            small.text-muted= `${revenueCount} payments`
-            
-      .col-md-3.col-6.mb-3
-        .card.border-warning.h-100
-          .card-body.text-center
-            .display-4.text-warning.mb-2
-              i.fa.fa-chart-bar
-            h4.card-title.text-warning= t("Avg Revenue")
-            .display-6.font-weight-bold.text-dark= `$${(averageRevenue / 100).toLocaleString()}`
-            small.text-muted= t("per payment")
-
-    // Quick Actions
-    .row.mb-4
+    // Enterprise Navigation
+    .row.mb-3
       .col
         .card
-          .card-header.bg-primary.text-white
-            h5.mb-0
-              i.fa.fa-bolt.me-2
-              = t("Quick Actions")
           .card-body
-            .row
-              .col-md-3.col-6.mb-2
-                a.btn.btn-outline-primary.btn-block(href="/admin/enterprise/accounts")
-                  i.fa.fa-users.me-2
-                  = t("Manage Accounts")
-              .col-md-3.col-6.mb-2
-                a.btn.btn-outline-success.btn-block(href="/admin/enterprise/onboarding")
-                  i.fa.fa-rocket.me-2
-                  = t("Onboarding Status")
-              .col-md-3.col-6.mb-2
-                a.btn.btn-outline-info.btn-block(href="/admin/enterprise/analytics")
-                  i.fa.fa-chart-pie.me-2
+            .d-flex.justify-content-between.align-items-center.flex-wrap
+              h5.mb-0
+                i.fa.fa-building.mr-2
+                = t("Enterprise Management")
+              .btn-group.mb-2
+                a.btn.btn-primary(href=l("/admin/enterprise/accounts"))
+                  i.fa.fa-users.mr-1
+                  = t("View All Accounts")
+                a.btn.btn-success(href=l("/admin/enterprise/workflow"))
+                  i.fa.fa-tasks.mr-1
+                  = t("Workflow Dashboard")
+                a.btn.btn-info(href=l("/admin/enterprise/analytics"))
+                  i.fa.fa-chart-bar.mr-1
                   = t("Analytics")
-              .col-md-3.col-6.mb-2
-                a.btn.btn-outline-warning.btn-block(href="/admin/enterprise/reports")
-                  i.fa.fa-file-alt.me-2
-                  = t("Reports")
 
-    // Recent Enterprise Payments
-    .row.mb-4
+    .row.mb-3
+      .col
+        .d-flex.flex-wrap.rounded.border.bg-white.bg-themed.text-center
+          .p-3.p-md-3.d-flex.flex-column.flex-grow-1.justify-content-center
+            h2.h4.text-center= t("Enterprise Accounts")
+            .display-4.font-weight-bold= totalEnterprise.toLocaleString()
+          .p-3.p-md-4.d-flex.flex-column.flex-grow-1.justify-content-center
+            h2.h4.text-center= t("New This Month")
+            .display-4.font-weight-bold= newEnterpriseThisMonth.toLocaleString()
+          .p-3.p-md-4.d-flex.flex-column.flex-grow-1.justify-content-center
+            h2.h4.text-center= t("Total Revenue")
+            .display-4.font-weight-bold= `$${(totalRevenue / 100).toLocaleString()}`
+    
+    .row.mb-3
       .col
         .card
-          .card-header.bg-success.text-white
-            h5.mb-0
-              i.fa.fa-credit-card.me-2
-              = t("Recent Enterprise Payments")
           .card-body
+            h2.h4.text-center.mb-0= t("Recent Enterprise Payments")
             if recentPayments && recentPayments.length > 0
-              .table-responsive
-                table.table.table-striped.table-hover
-                  thead.thead-light
+              .table-responsive.mt-3
+                table.table.table-hover.table-sm
+                  thead
                     tr
                       th= t("Customer")
                       th= t("Amount")
-                      th= t("Method")
                       th= t("Plan")
                       th= t("Date")
-                      th= t("Status")
                   tbody
                     each payment in recentPayments
                       tr
                         td
                           if payment.user
-                            strong= payment.user.email
-                            if payment.user[config.passport.fields.organizationName]
-                              br
-                              small.text-muted= payment.user[config.passport.fields.organizationName]
+                            = payment.user.email
                           else
                             em.text-muted= t("Unknown User")
-                        td
-                          strong.text-success= `$${(payment.amount / 100).toFixed(2)}`
-                          if payment.currency && payment.currency !== 'usd'
-                            small.text-muted= ` ${payment.currency.toUpperCase()}`
-                        td
-                          span.badge.badge-outline-secondary= payment.method || 'unknown'
-                        td
-                          span.badge(class=payment.plan === 'team' ? 'badge-primary' : 'badge-success')= payment.plan
-                        td
-                          time(datetime=new Date(payment.created_at).toISOString())
-                            = new Date(payment.created_at).toLocaleDateString()
-                        td
-                          if payment.amount_refunded > 0
-                            span.badge.badge-warning= t("Partially Refunded")
-                          else
-                            span.badge.badge-success= t("Completed")
+                        td= `$${(payment.amount / 100).toFixed(2)}`
+                        td= payment.plan || 'unknown'
+                        td= new Date(payment.created_at).toLocaleDateString()
             else
-              .text-center.py-4.text-muted
-                i.fa.fa-info-circle.fa-2x.mb-3
+              .text-center.mt-3.text-muted
                 p= t("No recent enterprise payments found.")
-
-    // Enterprise Account Growth Chart
-    .row.mb-4
-      .col
-        .card
-          .card-header.bg-info.text-white
-            h5.mb-0
-              i.fa.fa-chart-area.me-2
-              = t("Enterprise Growth Trends")
-          .card-body
-            #enterprise-growth-chart.text-center.mt-3
-              .text-primary
-                i.fa.fa-2x.fa-spin.fa-spinner
-                p.mt-2= t("Loading chart data...")
-
-    // Enterprise Plan Distribution
-    .row.mb-4
-      .col-md-6
-        .card
-          .card-header.bg-warning.text-white
-            h5.mb-0
-              i.fa.fa-pie-chart.me-2
-              = t("Plan Distribution")
-          .card-body
-            #plan-distribution-chart.text-center.mt-3
-              .text-primary
-                i.fa.fa-2x.fa-spin.fa-spinner
-                p.mt-2= t("Loading chart data...")
-      
-      .col-md-6
-        .card
-          .card-header.bg-secondary.text-white
-            h5.mb-0
-              i.fa.fa-map.me-2
-              = t("Geographic Distribution")
-          .card-body
-            #geographic-chart.text-center.mt-3
-              .text-primary
-                i.fa.fa-2x.fa-spin.fa-spinner
-                p.mt-2= t("Loading chart data...")
-
-block append scripts
-  script.
-    // Initialize charts when page loads
-    document.addEventListener('DOMContentLoaded', function() {
-      // TODO: Initialize Chart.js charts for enterprise analytics
-      // This would integrate with the analytics data from the controller
-      console.log('Enterprise dashboard loaded');
-      
-      // Remove loading spinners for now
-      const chartElements = [
-        '#enterprise-growth-chart',
-        '#plan-distribution-chart', 
-        '#geographic-chart'
-      ];
-      
-      chartElements.forEach(selector => {
-        const element = document.querySelector(selector);
-        if (element) {
-          element.innerHTML = '<p class="text-muted">Chart integration pending</p>';
-        }
-      });
-    });

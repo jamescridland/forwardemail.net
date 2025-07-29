@@ -1,219 +1,88 @@
 extends ../../layout
 
 block body
-  .container.py-3
-    .row
+  .container-fluid.py-3
+    .row.mt-1
       .col
         include ../../_breadcrumbs
-    
-    .row.mb-3
-      .col
-        .d-flex.justify-content-between.align-items-center
-          h1.h3.mb-0.text-primary
-            i.fa.fa-building.me-2
-            = t("Enterprise Accounts")
-          .btn-group
-            a.btn.btn-primary(href="/admin/enterprise/dashboard")
-              i.fa.fa-tachometer-alt.me-2
-              = t("Dashboard")
-            a.btn.btn-outline-success(href="/admin/enterprise/reports")
-              i.fa.fa-download.me-2
-              = t("Export")
+        
 
-    // Search and Filters
-    .row.mb-3
-      .col
-        .card
-          .card-body
-            form(method="GET", action="/admin/enterprise")
-              .row
-                .col-md-4.mb-2
-                  .input-group
-                    input.form-control(
-                      type="search",
-                      name="q",
-                      placeholder=t("Search by email, name, or organization..."),
-                      value=q || '',
-                      autocomplete="off"
-                    )
-                    .input-group-append
-                      button.btn.btn-outline-primary(type="submit")
-                        i.fa.fa-search
-                .col-md-3.mb-2
-                  select.form-control(name="plan")
-                    option(value="", selected=!plan)= t("All Plans")
-                    option(value="team", selected=plan === 'team')= t("Team")
-                    option(value="enhanced_protection", selected=plan === 'enhanced_protection')= t("Enhanced Protection")
-                .col-md-3.mb-2
-                  select.form-control(name="sort")
-                    option(value="created_at", selected=!sort || sort === 'created_at')= t("Newest First")
-                    option(value="-created_at", selected=sort === '-created_at')= t("Oldest First")
-                    option(value="email", selected=sort === 'email')= t("Email A-Z")
-                    option(value="-email", selected=sort === '-email')= t("Email Z-A")
-                .col-md-2.mb-2
-                  button.btn.btn-primary.btn-block(type="submit")
-                    i.fa.fa-filter.me-1
-                    = t("Filter")
-
-    // Results Summary
-    .row.mb-3
-      .col
-        .alert.alert-info.mb-0
-          i.fa.fa-info-circle.me-2
-          strong= t("Total Enterprise Accounts:")
-          = ` ${itemCount.toLocaleString()}`
-          if q
-            = ` (${t("filtered by:")} "${q}")`
-
-    // Enterprise Accounts Table
-    .row.mb-3
-      .col
-        .card
-          .card-body.p-0
-            if users && users.length > 0
-              .table-responsive
-                table.table.table-striped.table-hover.mb-0
-                  thead.thead-dark
-                    tr
-                      th.align-middle= t("Account")
-                      th.align-middle= t("Plan")
-                      th.align-middle.text-center= t("Domains")
-                      th.align-middle.text-center= t("Revenue")
-                      th.align-middle= t("Status")
-                      th.align-middle= t("Created")
-                      th.align-middle.text-center= t("Actions")
-                  tbody
-                    each user in users
-                      tr
-                        td.align-middle
-                          .d-flex.align-items-center
-                            .me-3
-                              if user.avatar_url
-                                img.rounded-circle(src=user.avatar_url, alt=user.email, width="40", height="40")
-                              else
-                                .bg-primary.rounded-circle.d-flex.align-items-center.justify-content-center(style="width: 40px; height: 40px;")
-                                  i.fa.fa-user.text-white
-                            div
-                              strong.text-primary= user.email
-                              if user[config.passport.fields.organizationName]
-                                br
-                                small.text-muted
-                                  i.fa.fa-building.me-1
-                                  = user[config.passport.fields.organizationName]
-                              if user[config.passport.fields.givenName] || user[config.passport.fields.familyName]
-                                br
-                                small.text-muted
-                                  = `${user[config.passport.fields.givenName] || ''} ${user[config.passport.fields.familyName] || ''}`.trim()
-                        
-                        td.align-middle
-                          if user.plan === 'team'
-                            span.badge.badge-primary.badge-lg
-                              i.fa.fa-users.me-1
-                              = t("Team")
-                          else if user.plan === 'enhanced_protection'
-                            span.badge.badge-success.badge-lg
-                              i.fa.fa-shield-alt.me-1
-                              = t("Enhanced Protection")
-                          else
-                            span.badge.badge-secondary= user.plan || 'free'
-                        
-                        td.align-middle.text-center
-                          if user.domainCount > 0
-                            span.badge.badge-info.badge-lg= user.domainCount
-                            if user.domainCount > 5
-                              br
-                              small.text-success
-                                i.fa.fa-star.me-1
-                                = t("High Volume")
-                          else
-                            span.text-muted= "0"
-                        
-                        td.align-middle.text-center
-                          if user.totalRevenue > 0
-                            strong.text-success= `$${(user.totalRevenue / 100).toLocaleString()}`
-                            if user.recentPayments && user.recentPayments.length > 0
-                              br
-                              small.text-muted= `${user.recentPayments.length} payments`
-                          else
-                            span.text-muted= "$0"
-                        
-                        td.align-middle
-                          if user[config.userFields.isBanned]
-                            span.badge.badge-danger
-                              i.fa.fa-ban.me-1
-                              = t("Banned")
-                          else if !user[config.userFields.hasVerifiedEmail]
-                            span.badge.badge-warning
-                              i.fa.fa-exclamation-triangle.me-1
-                              = t("Unverified")
-                          else
-                            span.badge.badge-success
-                              i.fa.fa-check.me-1
-                              = t("Active")
-                        
-                        td.align-middle
-                          time.text-muted(datetime=new Date(user.created_at).toISOString())
-                            = new Date(user.created_at).toLocaleDateString()
-                        
-                        td.align-middle.text-center
-                          .btn-group.btn-group-sm
-                            a.btn.btn-outline-primary.btn-sm(
-                              href=`/admin/users/${user._id}`,
-                              title=t("View Details")
-                            )
-                              i.fa.fa-eye
-                            if user.recentPayments && user.recentPayments.length > 0
-                              a.btn.btn-outline-success.btn-sm(
-                                href=`/admin/payments?user=${user._id}`,
-                                title=t("View Payments")
-                              )
-                                i.fa.fa-credit-card
-                            if user.domains && user.domains.length > 0
-                              a.btn.btn-outline-info.btn-sm(
-                                href=`/admin/domains?user=${user._id}`,
-                                title=t("View Domains")
-                              )
-                                i.fa.fa-globe
-            else
-              .text-center.py-5
-                .text-muted
-                  i.fa.fa-search.fa-3x.mb-3
-                  h4= t("No Enterprise Accounts Found")
-                  if q
-                    p= t("No accounts match your search criteria.")
-                    a.btn.btn-primary(href="/admin/enterprise")= t("Clear Search")
-                  else
-                    p= t("There are currently no enterprise accounts in the system.")
-
-    // Pagination
-    if pageCount > 1
-      .row
-        .col
-          nav(aria-label=t("Enterprise accounts pagination"))
-            != paginate(
-              ctx,
-              pageCount,
-              pages
+        .row.mb-3
+          .col.d-flex.justify-content-between.align-items-center
+            h2.h4.mb-0= t("Enterprise Accounts")
+            button.btn.btn-primary(
+              type="button",
+              data-toggle="modal",
+              data-target="#create-enterprise-modal"
             )
+              i.fa.fa-plus.mr-2
+              = t("Create New Account")
 
-block append scripts
-  script.
-    document.addEventListener('DOMContentLoaded', function() {
-      // Auto-submit form when select options change
-      const form = document.querySelector('form');
-      const selects = form.querySelectorAll('select');
-      
-      selects.forEach(select => {
-        select.addEventListener('change', function() {
-          form.submit();
-        });
-      });
-      
-      // Initialize tooltips for action buttons
-      const tooltips = document.querySelectorAll('[title]');
-      tooltips.forEach(element => {
-        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
-          new bootstrap.Tooltip(element);
-        }
-      });
-    });
+        form.ajax-form.table-ajax-form.card.mb-3(
+          action=ctx.path,
+          method="GET",
+          data-table="#table-enterprise",
+          data-search-params="mongodb_query,q"
+        )
+          .card-body
+            .h5.card-title= t("Search for enterprise accounts")
+            .form-group
+              label(for="textarea-mongodb-query") MongoDB query
+              textarea#textarea-mongodb-query.form-control(
+                name="mongodb_query",
+                rows=3,
+                placeholder="MongoDB query"
+              )= ctx.query.mongodb_query || ""
+              small.form-text.text-muted!= t('See <a class="notranslate" href="https://github.com/mongodb-js/query-parser" target="_blank" rel="noopener noreferrer">mongodb-query-parser</a> for more insight.')
+            .form-group
+              label(for="input-keyword-search")= t("Basic search")
+              input#input-keyword-search.form-control(
+                type="text",
+                value=ctx.query.q || "",
+                name="q",
+placeholder=t("Search by company name, contact name, email, or domain name")
+              )
+            button.btn.btn-success(type="submit")= t("Search")
+
+        #table-enterprise
+          include ./_table
+
+    // Create New Enterprise Account Modal
+    .modal.fade#create-enterprise-modal(tabindex="-1", role="dialog")
+      .modal-dialog.modal-lg(role="document")
+        .modal-content
+          form.ajax-form(action=l("/admin/enterprise/accounts"), method="POST")
+            .modal-header
+              h5.modal-title= t("Create New Enterprise Account")
+              button.close(type="button", data-dismiss="modal")
+                span &times;
+            .modal-body
+              .alert.alert-info
+                i.fa.fa-info-circle.mr-2
+                = t("Create a new enterprise account from initial inquiry information.")
+              
+              .row
+                .col-md-6
+                  .form-group
+                    label(for="company-name")= t("Company Name")
+                    input#company-name.form-control(name="company_name", type="text", required)
+                  .form-group
+                    label(for="contact-name")= t("Primary Contact Name")
+                    input#contact-name.form-control(name="primary_contact_name", type="text", required)
+                .col-md-6
+                  .form-group
+                    label(for="contact-email")= t("Primary Contact Email")
+                    input#contact-email.form-control(name="primary_contact_email", type="email", required)
+                  .form-group
+                    label(for="domain")= t("Domain")
+                    input#domain.form-control(name="website", type="text", placeholder="example.com")
+              
+              .form-group
+                label(for="initial-notes")= t("Initial Notes")
+                textarea#initial-notes.form-control(name="initial_notes", rows="3", placeholder=t("Add any notes from the initial inquiry..."))
+            
+            .modal-footer
+              button.btn.btn-secondary(type="button", data-dismiss="modal")= t("Cancel")
+              button.btn.btn-primary(type="submit")
+                i.fa.fa-plus.mr-1
+                = t("Create Account")

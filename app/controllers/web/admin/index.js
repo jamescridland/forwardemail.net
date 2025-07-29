@@ -13,6 +13,9 @@ const emails = require('./emails');
 const inquiries = require('./inquiries');
 const payments = require('./payments');
 const enterprise = require('./enterprise');
+const enterpriseAccount = require('./enterprise-account');
+const enterpriseWorkflow = require('./enterprise-workflow');
+const enterpriseSignatures = require('./enterprise-signatures');
 
 module.exports = {
   dashboard,
@@ -24,5 +27,8 @@ module.exports = {
   emails,
   inquiries,
   payments,
-  enterprise
+  enterprise,
+  enterpriseAccount,
+  enterpriseWorkflow,
+  enterpriseSignatures
 };

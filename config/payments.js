@@ -94,6 +94,36 @@ const STRIPE_MAPPING = {
         ? 'price_1Hc40fLFuf8FuIPJfrJ8Uhf9'
         : 'price_1Hc2yqLFuf8FuIPJYbtNstWT'
     }
+  },
+  enterprise: {
+    'one-time': {
+      '30d': isTest ? 'price_1EntTestOneTime30d' : 'price_1EntProdOneTime30d',
+      '60d': isTest ? 'price_1EntTestOneTime60d' : 'price_1EntProdOneTime60d',
+      '90d': isTest ? 'price_1EntTestOneTime90d' : 'price_1EntProdOneTime90d',
+      '180d': isTest
+        ? 'price_1EntTestOneTime180d'
+        : 'price_1EntProdOneTime180d',
+      '1y': isTest ? 'price_1EntTestOneTime1y' : 'price_1EntProdOneTime1y',
+      '2y': isTest ? 'price_1EntTestOneTime2y' : 'price_1EntProdOneTime2y',
+      '3y': isTest ? 'price_1EntTestOneTime3y' : 'price_1EntProdOneTime3y'
+    },
+    subscription: {
+      '30d': isTest
+        ? 'price_1EntTestSubscription30d'
+        : 'price_1EntProdSubscription30d',
+      '60d': isTest
+        ? 'price_1EntTestSubscription60d'
+        : 'price_1EntProdSubscription60d',
+      '90d': isTest
+        ? 'price_1EntTestSubscription90d'
+        : 'price_1EntProdSubscription90d',
+      '180d': isTest
+        ? 'price_1EntTestSubscription180d'
+        : 'price_1EntProdSubscription180d',
+      '1y': isTest
+        ? 'price_1EntTestSubscription1y'
+        : 'price_1EntProdSubscription1y'
+    }
   }
 };
 
@@ -101,9 +131,11 @@ const STRIPE_PRODUCTS = {
   // test
   prod_ICSwLEvQhmYDcy: 'team',
   prod_ICStJG6fjZhEjl: 'enhanced_protection',
+  prod_EntTestProduct: 'enterprise',
   // live
   prod_ICRsgPRv2sVKlp: 'team',
-  prod_IBizMRHKSjMQcl: 'enhanced_protection'
+  prod_IBizMRHKSjMQcl: 'enhanced_protection',
+  prod_EntProdProduct: 'enterprise'
 };
 
 const PAYMENT_DURATIONS = new Set([
@@ -134,6 +166,15 @@ const PAYPAL_MAPPING = {
     '1y': 108,
     '2y': 216,
     '3y': 324
+  },
+  enterprise: {
+    '30d': 99,
+    '60d': 198,
+    '90d': 297,
+    '180d': 594,
+    '1y': 1188,
+    '2y': 2376,
+    '3y': 3564
   }
 };
 
@@ -151,6 +192,13 @@ const PAYPAL_PLAN_MAPPING = {
     '90d': process.env.PAYPAL_TEAM_PLAN_90D,
     '180d': process.env.PAYPAL_TEAM_PLAN_180D,
     '1y': process.env.PAYPAL_TEAM_PLAN_1Y
+  },
+  enterprise: {
+    '30d': process.env.PAYPAL_ENTERPRISE_PLAN_30D,
+    '60d': process.env.PAYPAL_ENTERPRISE_PLAN_60D,
+    '90d': process.env.PAYPAL_ENTERPRISE_PLAN_90D,
+    '180d': process.env.PAYPAL_ENTERPRISE_PLAN_180D,
+    '1y': process.env.PAYPAL_ENTERPRISE_PLAN_1Y
   }
 };
 
@@ -168,6 +216,13 @@ const PAYPAL_PLAN_MAPPING_LEGACY = {
     '90d': process.env.PAYPAL_TEAM_PLAN_90D_LEGACY,
     '180d': process.env.PAYPAL_TEAM_PLAN_180D_LEGACY,
     '1y': process.env.PAYPAL_TEAM_PLAN_1Y_LEGACY
+  },
+  enterprise: {
+    '30d': process.env.PAYPAL_ENTERPRISE_PLAN_30D_LEGACY,
+    '60d': process.env.PAYPAL_ENTERPRISE_PLAN_60D_LEGACY,
+    '90d': process.env.PAYPAL_ENTERPRISE_PLAN_90D_LEGACY,
+    '180d': process.env.PAYPAL_ENTERPRISE_PLAN_180D_LEGACY,
+    '1y': process.env.PAYPAL_ENTERPRISE_PLAN_1Y_LEGACY
   }
 };
 

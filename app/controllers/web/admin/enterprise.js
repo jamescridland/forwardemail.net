@@ -4,189 +4,188 @@
  */
 
 const Boom = require('@hapi/boom');
-const RE2 = require('re2');
 const isSANB = require('is-string-and-not-blank');
 const paginate = require('koa-ctx-paginate');
 const parser = require('mongodb-query-parser');
-const dayjs = require('dayjs-with-plugins');
 const _ = require('#helpers/lodash');
 
-const { Users, Domains, Payments } = require('#models');
+const { Users, Domains, Payments, EnterpriseAccounts } = require('#models');
 const config = require('#config');
 
 const ENTERPRISE_SEARCH_PATHS = [
-  'email',
-  config.passport.fields.givenName,
-  config.passport.fields.familyName,
-  config.passport.fields.organizationName
+  'company_name',
+  'primary_contact.name',
+  'primary_contact.email'
 ];
+
 
 async function list(ctx) {
   let query = {};
 
-  // Filter for enterprise accounts (team plan or enhanced_protection with multiple domains)
-  const enterpriseQuery = {
-    $or: [
-      { plan: 'team' },
-      {
-        plan: 'enhanced_protection',
-        // Users with multiple domains could be considered enterprise
-        // This would need adjustment based on your enterprise criteria
-      }
-    ],
-    [config.userFields.isBanned]: false,
-    [config.userFields.hasVerifiedEmail]: true
+  // Base query for active enterprise accounts
+  const baseQuery = {
+    is_active: true
   };
 
   if (ctx.query.q) {
-    const searchQuery = { $or: [] };
+    const searchOr = [];
 
+    // Search in enterprise account fields
     for (const field of ENTERPRISE_SEARCH_PATHS) {
-      searchQuery.$or.push(
+      searchOr.push(
         { [field]: { $regex: ctx.query.q, $options: 'i' } },
         { [field]: { $regex: _.escapeRegExp(ctx.query.q), $options: 'i' } }
       );
     }
 
-    query = {
-      $and: [enterpriseQuery, searchQuery]
+    // Search in domains (for domain name search)
+    const domainResults = await Domains.find({
+      name: { $regex: ctx.query.q, $options: 'i' }
+    })
+      .select('members.user')
+      .lean();
+
+    const userIdsFromDomains = [];
+    for (const domain of domainResults) {
+      for (const member of domain.members) {
+        if (member.user) userIdsFromDomains.push(member.user);
+      }
+    }
+
+    if (userIdsFromDomains.length > 0) {
+      searchOr.push({ user: { $in: userIdsFromDomains } });
+    }
+
+    if (searchOr.length > 0) {
+      query.$or = searchOr;
+    }
+  }
+
+  let $sort = { created_at: -1 };
+  if (ctx.query.sort) {
+    const order = ctx.query.sort.startsWith('-') ? -1 : 1;
+    $sort = {
+      [order === -1 ? ctx.query.sort.slice(1) : ctx.query.sort]: order
     };
-  } else {
-    query = enterpriseQuery;
   }
 
   if (isSANB(ctx.query.mongodb_query)) {
     try {
-      const customQuery = parser.parseFilter(ctx.query.mongodb_query);
-      if (!customQuery || Object.keys(customQuery).length === 0)
+      const mongoQuery = parser.parseFilter(ctx.query.mongodb_query);
+      if (!mongoQuery || Object.keys(mongoQuery).length === 0)
         throw new Error('Query was not parsed properly');
-      query = {
-        $and: [enterpriseQuery, customQuery]
-      };
+
+      query =
+        ctx.query.q && Object.keys(query).length > 0
+          ? { $and: [baseQuery, query, mongoQuery] }
+          : { $and: [baseQuery, mongoQuery] };
     } catch (err) {
       ctx.logger.warn(err);
-      ctx.flash('warning', err.message);
+      throw Boom.badRequest(err.message);
     }
+  } else {
+    query =
+      ctx.query.q && Object.keys(query).length > 0
+        ? { $and: [baseQuery, query] }
+        : baseQuery;
   }
 
-  // Sort by created date (newest first) and then by plan
-  const sort = { created_at: -1, plan: 1 };
-
-  try {
-    const [users, itemCount] = await Promise.all([
-      Users.find(query)
-        .populate('domains')
-        .sort(sort)
-        .limit(ctx.query.limit)
-        .skip(ctx.paginate.skip)
-        .lean()
-        .exec(),
-      Users.countDocuments(query)
-    ]);
-
-    // Get recent payments for each enterprise user
-    const userIds = users.map(user => user._id);
-    const recentPayments = await Payments.find({
-      user: { $in: userIds }
-    })
-      .sort({ created_at: -1 })
-      .limit(userIds.length * 3) // Get up to 3 recent payments per user
-      .lean()
-      .exec();
-
-    // Group payments by user
-    const paymentsByUser = _.groupBy(recentPayments, 'user');
-
-    // Enhance users with payment and domain information
-    const enhancedUsers = users.map(user => ({
-      ...user,
-      recentPayments: paymentsByUser[user._id.toString()] || [],
-      domainCount: user.domains ? user.domains.length : 0,
-      totalRevenue: paymentsByUser[user._id.toString()]
-        ? paymentsByUser[user._id.toString()].reduce((sum, payment) => sum + (payment.amount || 0), 0)
-        : 0
-    }));
-
-    const pageCount = Math.ceil(itemCount / ctx.query.limit);
-
-    if (ctx.accepts('html')) {
-      return ctx.render('admin/enterprise', {
-        users: enhancedUsers,
-        pageCount,
-        itemCount,
-        pages: paginate.getArrayPages(ctx)(6, pageCount, ctx.query.page)
-      });
+  const results = await EnterpriseAccounts.aggregate([
+    { $match: query },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'user',
+        foreignField: '_id',
+        as: 'user'
+      }
+    },
+    { $unwind: '$user' },
+    {
+      $lookup: {
+        from: 'domains',
+        localField: 'user._id',
+        foreignField: 'members.user',
+        as: 'domains'
+      }
+    },
+    {
+      $lookup: {
+        from: 'payments',
+        localField: 'user._id',
+        foreignField: 'user',
+        as: 'payments'
+      }
+    },
+    {
+      $addFields: {
+        domainCount: { $size: '$domains' },
+        userCount: {
+          $reduce: {
+            input: '$domains',
+            initialValue: 0,
+            in: {
+              $add: ['$$value', { $size: { $ifNull: ['$$this.members', []] } }]
+            }
+          }
+        },
+        aliasCount: {
+          $reduce: {
+            input: '$domains',
+            initialValue: 0,
+            in: {
+              $add: ['$$value', { $size: { $ifNull: ['$$this.aliases', []] } }]
+            }
+          }
+        },
+        lastPayment: {
+          $arrayElemAt: [
+            { $sortArray: { input: '$payments', sortBy: { created_at: -1 } } },
+            0
+          ]
+        },
+        totalRevenue: { $sum: '$payments.amount' }
+      }
+    },
+    {
+      $facet: {
+        data: [
+          { $sort },
+          { $skip: ctx.paginate.skip },
+          { $limit: ctx.paginate.limit || 50 }
+        ],
+        count: [{ $count: 'count' }]
+      }
     }
+  ]);
 
-    const table = `<div class="table-responsive">
-      <table class="table table-striped table-hover">
-        <thead class="thead-dark">
-          <tr>
-            <th class="align-middle">
-              <a class="text-white" href="?${qs.stringify({
-                ...ctx.query,
-                sort: 'email'
-              })}">
-                ${ctx.translate('Email')}
-              </a>
-            </th>
-            <th class="align-middle">
-              <a class="text-white" href="?${qs.stringify({
-                ...ctx.query,
-                sort: 'plan'
-              })}">
-                ${ctx.translate('Plan')}
-              </a>
-            </th>
-            <th class="align-middle">${ctx.translate('Domains')}</th>
-            <th class="align-middle">${ctx.translate('Total Revenue')}</th>
-            <th class="align-middle">${ctx.translate('Created')}</th>
-            <th class="align-middle">${ctx.translate('Actions')}</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${enhancedUsers.map(user => `
-            <tr>
-              <td class="align-middle">
-                <a href="/admin/users/${user._id}" class="font-weight-bold">
-                  ${user.email}
-                </a>
-                ${user[config.passport.fields.organizationName] 
-                  ? `<br><small class="text-muted">${user[config.passport.fields.organizationName]}</small>` 
-                  : ''}
-              </td>
-              <td class="align-middle">
-                <span class="badge badge-${user.plan === 'team' ? 'primary' : 'success'}">
-                  ${ctx.translate(user.plan)}
-                </span>
-              </td>
-              <td class="align-middle">
-                <span class="badge badge-secondary">${user.domainCount}</span>
-              </td>
-              <td class="align-middle">
-                $${(user.totalRevenue / 100).toFixed(2)}
-              </td>
-              <td class="align-middle">
-                <time datetime="${dayjs(user.created_at).toISOString()}">
-                  ${dayjs(user.created_at).format('M/D/YY')}
-                </time>
-              </td>
-              <td class="align-middle">
-                <a href="/admin/users/${user._id}" class="btn btn-sm btn-outline-primary">
-                  ${ctx.translate('View')}
-                </a>
-              </td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    </div>`;
+  const enterprises = results[0].data;
+  const itemCount = results[0].count;
 
-    ctx.body = table;
-  } catch (err) {
-    ctx.logger.error(err);
-    ctx.throw(Boom.badRequest(err.message));
+  const pageCount = Math.ceil(
+    (itemCount[0]?.count || 0) / (ctx.paginate.limit || 50)
+  );
+
+  if (
+    ctx.accepts('html') &&
+    !ctx.request.header.accept.includes('application/json')
+  ) {
+    return ctx.render('admin/enterprise/index', {
+      enterprises,
+      pageCount,
+      itemCount: itemCount[0]?.count || 0,
+      pages: paginate.getArrayPages(ctx)(6, pageCount, ctx.query.page)
+    });
   }
+
+  const table = await ctx.render('admin/enterprise/_table', {
+    enterprises,
+    pageCount,
+    itemCount: itemCount[0]?.count || 0,
+    pages: paginate.getArrayPages(ctx)(6, pageCount, ctx.query.page)
+  });
+
+  ctx.body = { table };
 }
 
 async function dashboard(ctx) {
@@ -194,10 +193,13 @@ async function dashboard(ctx) {
     // Get enterprise metrics
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    const yearAgo = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
 
     const enterpriseQuery = {
-      $or: [{ plan: 'team' }, { plan: 'enhanced_protection' }],
+      $or: [
+        { plan: 'enterprise' },
+        { plan: 'team' },
+        { plan: 'enhanced_protection' }
+      ],
       [config.userFields.isBanned]: false,
       [config.userFields.hasVerifiedEmail]: true
     };
@@ -227,7 +229,7 @@ async function dashboard(ctx) {
         },
         {
           $match: {
-            'user.plan': { $in: ['team', 'enhanced_protection'] },
+            'user.plan': { $in: ['enterprise', 'team', 'enhanced_protection'] },
             'user.is_banned': false,
             'user.has_verified_email': true
           }
@@ -244,7 +246,7 @@ async function dashboard(ctx) {
         .populate({
           path: 'user',
           match: {
-            plan: { $in: ['team', 'enhanced_protection'] },
+            plan: { $in: ['enterprise', 'team', 'enhanced_protection'] },
             is_banned: false,
             has_verified_email: true
           }
@@ -256,18 +258,27 @@ async function dashboard(ctx) {
     ]);
 
     // Filter out payments where user was null after populate
-    const filteredPayments = enterprisePayments.filter(payment => payment.user);
+    const filteredPayments = enterprisePayments.filter(
+      (payment) => payment.user
+    );
 
     // Calculate growth rate
-    const previousMonthStart = new Date(thirtyDaysAgo.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const previousMonthStart = new Date(
+      thirtyDaysAgo.getTime() - 30 * 24 * 60 * 60 * 1000
+    );
     const previousMonthEnterprise = await Users.countDocuments({
       ...enterpriseQuery,
       created_at: { $gte: previousMonthStart, $lt: thirtyDaysAgo }
     });
 
-    const growthRate = previousMonthEnterprise > 0 
-      ? ((newEnterpriseThisMonth - previousMonthEnterprise) / previousMonthEnterprise * 100).toFixed(1)
-      : 0;
+    const growthRate =
+      previousMonthEnterprise > 0
+        ? (
+            ((newEnterpriseThisMonth - previousMonthEnterprise) /
+              previousMonthEnterprise) *
+            100
+          ).toFixed(1)
+        : 0;
 
     const revenueData = enterpriseRevenue[0] || { total: 0, count: 0 };
 
@@ -278,7 +289,8 @@ async function dashboard(ctx) {
         growthRate,
         totalRevenue: revenueData.total,
         revenueCount: revenueData.count,
-        averageRevenue: revenueData.count > 0 ? (revenueData.total / revenueData.count) : 0,
+        averageRevenue:
+          revenueData.count > 0 ? revenueData.total / revenueData.count : 0,
         recentPayments: filteredPayments
       });
     }
@@ -289,7 +301,8 @@ async function dashboard(ctx) {
       growthRate,
       totalRevenue: revenueData.total,
       revenueCount: revenueData.count,
-      averageRevenue: revenueData.count > 0 ? (revenueData.total / revenueData.count) : 0
+      averageRevenue:
+        revenueData.count > 0 ? revenueData.total / revenueData.count : 0
     };
   } catch (err) {
     ctx.logger.error(err);
@@ -297,7 +310,109 @@ async function dashboard(ctx) {
   }
 }
 
+async function create(ctx) {
+  try {
+    const {
+      company_name,
+      website,
+      primary_contact_name,
+      primary_contact_email,
+      primary_contact_phone,
+      primary_contact_title,
+      estimated_users,
+      current_provider,
+      initial_notes
+    } = ctx.request.body;
+
+    // Validate required fields
+    if (!company_name || !primary_contact_name || !primary_contact_email) {
+      throw Boom.badRequest('Company name, contact name, and email are required');
+    }
+
+    // Check if user exists with this email
+    let user = await Users.findOne({ email: primary_contact_email.toLowerCase() });
+    
+    // If user doesn't exist, create a basic user record
+    if (!user) {
+      user = await Users.create({
+        email: primary_contact_email.toLowerCase(),
+        display_name: primary_contact_name,
+        given_name: primary_contact_name.split(' ')[0],
+        family_name: primary_contact_name.split(' ').slice(1).join(' ') || '',
+        company_name,
+        plan: 'free', // Start as free, will be upgraded during onboarding
+        has_verified_email: false, // They'll need to verify
+        has_set_password: false,
+        is_banned: false,
+        is_removed: false
+      });
+    }
+
+    // Create the enterprise account
+    const enterpriseAccountData = {
+      user: user._id,
+      company_name,
+      website: website || null,
+      
+      primary_contact: {
+        name: primary_contact_name,
+        email: primary_contact_email.toLowerCase(),
+        phone: primary_contact_phone || null,
+        title: primary_contact_title || null
+      },
+
+      requirements: {
+        estimated_users: estimated_users ? parseInt(estimated_users, 10) : null,
+        current_provider: current_provider || null
+      },
+
+      onboarding_status: 'inquiry_received',
+      
+      timeline: [{
+        status: 'inquiry_received',
+        date: new Date(),
+        notes: initial_notes || 'Enterprise account created manually via admin panel',
+        updated_by: ctx.state.user.email
+      }],
+
+      is_active: true
+    };
+
+    // Add initial note if provided
+    if (initial_notes) {
+      enterpriseAccountData.notes = [{
+        content: initial_notes,
+        created_by: ctx.state.user.email,
+        created_at: new Date(),
+        type: 'general'
+      }];
+    }
+
+    const enterpriseAccount = await EnterpriseAccounts.create(enterpriseAccountData);
+
+    const message = ctx.translate('ENTERPRISE_ACCOUNT_CREATED');
+    if (ctx.accepts('html')) {
+      ctx.flash('custom', {
+        title: ctx.request.t('Success'),
+        text: message,
+        type: 'success',
+        toast: true,
+        showConfirmButton: false,
+        timer: 3000,
+        position: 'top'
+      });
+      ctx.redirect(`/admin/enterprise/accounts/${enterpriseAccount._id}`);
+    } else {
+      ctx.body = { message, enterpriseAccount };
+    }
+  } catch (err) {
+    ctx.logger.error(err);
+    throw Boom.badRequest(err.message);
+  }
+}
+
 module.exports = {
   list,
-  dashboard
+  dashboard,
+  create
 };

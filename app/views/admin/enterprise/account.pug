@@ -1,0 +1,379 @@
+extends ../../layout
+
+block body
+  .container-fluid.py-3
+    .row.mt-1
+      .col
+        include ../../_breadcrumbs
+
+
+    // Account Header
+    .row.mb-3
+      .col
+        .card
+          .card-body
+            .d-flex.justify-content-between.align-items-start
+              div
+                h1.h3.mb-1= enterpriseAccount.company_name
+                p.text-muted.mb-2= enterpriseAccount.user.email
+                .badge-group
+                  span.badge.badge-lg(
+                    class=enterpriseAccount.onboarding_status === 'completed' ? 'badge-success' : 
+                          enterpriseAccount.onboarding_status.includes('contract') ? 'badge-warning' :
+                          enterpriseAccount.onboarding_status.includes('payment') ? 'badge-info' : 'badge-secondary'
+                  )= titleize(humanize(enterpriseAccount.onboarding_status))
+
+    // Key Metrics Row
+    .row.mb-3
+      .col-md-3.col-6.mb-3
+        .card.border-primary.h-100
+          .card-body.text-center
+            .display-4.text-primary.mb-2
+              i.fa.fa-dollar-sign
+            h5.card-title.text-primary= t("Total Paid")
+            .h4.font-weight-bold= `$${(totalPaid / 100).toLocaleString()}`
+      
+      .col-md-3.col-6.mb-3
+        .card.border-primary.h-100
+          .card-body.text-center
+            .display-4.text-primary.mb-2
+              i.fa.fa-calendar
+            h5.card-title.text-primary= t("Last Payment")
+            .h5.font-weight-bold
+              if lastPayment
+                = dayjs(lastPayment.created_at).format("M/D/YY")
+              else
+                span.text-muted= t("No payments")
+      
+      .col-md-3.col-6.mb-3
+        .card.border-primary.h-100
+          .card-body.text-center
+            .display-4.text-primary.mb-2
+              i.fa.fa-clock
+            h5.card-title.text-primary= t("Next Payment")
+            .h5.font-weight-bold
+              if nextPaymentDate
+                = dayjs(nextPaymentDate).format("M/D/YY")
+              else
+                span.text-muted= t("Not scheduled")
+
+    .row
+      // Left Column - Company & Contact Info
+      .col-lg-8
+        // Company Information
+        .card.mb-3
+          .card-header
+            h5.mb-0
+              i.fa.fa-building.mr-2
+              = t("Company Information")
+          .card-body
+            .row
+              .col-md-6
+                dl.row
+                  dt.col-sm-4= t("Company")
+                  dd.col-sm-8= enterpriseAccount.company_name
+                  dt.col-sm-4= t("Domain")
+                  dd.col-sm-8
+                    if enterpriseAccount.website
+                      a(href=enterpriseAccount.website, target="_blank", rel="noopener")= enterpriseAccount.website
+                    else
+                      span.text-muted= t("Not specified")
+              .col-md-6
+                if enterpriseAccount.address && enterpriseAccount.address.street
+                  dl.row
+                    dt.col-sm-4= t("Address")
+                    dd.col-sm-8
+                      = enterpriseAccount.address.street
+                      br
+                      = `${enterpriseAccount.address.city}, ${enterpriseAccount.address.state} ${enterpriseAccount.address.postal_code}`
+                      br
+                      = enterpriseAccount.address.country
+
+        // Contacts
+        .card.mb-3
+          .card-header
+            h5.mb-0
+              i.fa.fa-users.mr-2
+              = t("Contacts")
+          .card-body
+            .row
+              .col-md-4
+                h6.text-primary= t("Primary Contact")
+                if enterpriseAccount.primary_contact
+                  p.mb-1
+                    strong= enterpriseAccount.primary_contact.name
+                  p.mb-1
+                    a(href=`mailto:${enterpriseAccount.primary_contact.email}`)= enterpriseAccount.primary_contact.email
+
+              .col-md-4
+                h6.text-primary= t("Technical Contact")
+                if enterpriseAccount.technical_contact && enterpriseAccount.technical_contact.name
+                  p.mb-1
+                    strong= enterpriseAccount.technical_contact.name
+                  p.mb-1
+                    a(href=`mailto:${enterpriseAccount.technical_contact.email}`)= enterpriseAccount.technical_contact.email
+                else
+                  p.text-muted= t("Same as primary")
+
+              .col-md-4
+                h6.text-primary= t("Billing Contact")
+                if enterpriseAccount.billing_contact && enterpriseAccount.billing_contact.name
+                  p.mb-1
+                    strong= enterpriseAccount.billing_contact.name
+                  p.mb-1
+                    a(href=`mailto:${enterpriseAccount.billing_contact.email}`)= enterpriseAccount.billing_contact.email
+                else
+                  p.text-muted= t("Same as primary")
+
+
+        // Contract Documents Review
+        if enterpriseAccount.onboarding_status === 'contract_ready_for_review' || (enterpriseAccount.documents && enterpriseAccount.documents.some(doc => doc.type === 'contract'))
+          .card.mb-3
+            .card-header
+              h5.mb-0
+                i.fa.fa-file-contract.mr-2
+                = t("Contract Documents")
+            .card-body
+              if enterpriseAccount.documents && enterpriseAccount.documents.length > 0
+                each document in enterpriseAccount.documents.filter(doc => doc.type === 'contract')
+                  .border.rounded.p-3.mb-3
+                    .row
+                      .col-md-8
+                        h6.mb-1
+                          i.fa.fa-file-pdf.mr-2
+                          = document.name
+                        p.text-muted.mb-1
+                          = t("Version: %s", document.version || '1.0')
+                          = " | "
+                          = t("Created: %s", dayjs(document.created_at).format("M/D/YY h:mm A"))
+                        if document.approved_by
+                          p.text-success.mb-1
+                            i.fa.fa-check-circle.mr-1
+                            = t("Approved by %s on %s", document.approved_by, dayjs(document.approved_at).format("M/D/YY h:mm A"))
+                          if document.approval_notes
+                            p.small.text-muted= document.approval_notes
+                        else if enterpriseAccount.onboarding_status === 'contract_ready_for_review'
+                          p.text-warning.mb-1
+                            i.fa.fa-clock.mr-1
+                            = t("Pending admin review and approval")
+                      .col-md-4.text-right
+                        if document.url
+                          a.btn.btn-outline-primary.btn-sm.mb-2(
+                            href=document.url,
+                            target="_blank",
+                            rel="noopener noreferrer"
+                          )
+                            i.fa.fa-external-link-alt.mr-1
+                            = t("View Document")
+                        if enterpriseAccount.onboarding_status === 'contract_ready_for_review' && !document.approved_by
+                          .alert.alert-info.small.mb-0
+                            = t("Use 'Approve Contract for Signature' action to approve this document for sending to the customer.")
+              else
+                .text-center.text-muted.py-3
+                  i.fa.fa-file-contract.fa-2x.mb-2
+                  p= t("No contract documents generated yet")
+
+        // Recent Payments
+        .card.mb-3
+          .card-header
+            h5.mb-0
+              i.fa.fa-credit-card.mr-2
+              = t("Payment History")
+          .card-body
+            if payments && payments.length > 0
+              .table-responsive
+                table.table.table-sm
+                  thead
+                    tr
+                      th= t("Date")
+                      th= t("Amount")
+                      th= t("Method")
+                      th= t("Reference")
+                  tbody
+                    each payment in payments
+                      tr
+                        td= dayjs(payment.created_at).format("M/D/YY")
+                        td= `$${(payment.amount / 100).toFixed(2)}`
+                        td= titleize(humanize(payment.method))
+                        td
+                          code= payment.reference
+            else
+              .text-center.text-muted.py-3
+                i.fa.fa-credit-card.fa-2x.mb-2
+                p= t("No payment history")
+
+      // Right Column - Timeline & Actions
+      .col-lg-4
+        // Onboarding Progress
+        .card.mb-3
+          .card-header
+            h5.mb-0
+              i.fa.fa-chart-line.mr-2
+              = t("Onboarding Progress")
+          .card-body
+            .progress.mb-2
+              .progress-bar(style=`width: ${onboardingProgress}%`)
+            p.text-center.mb-0= `${onboardingProgress}% Complete`
+
+        // Quick Actions
+        .card.mb-3
+          .card-header
+            h5.mb-0
+              i.fa.fa-bolt.mr-2
+              = t("Quick Actions")
+          .card-body
+            .d-grid.gap-2
+              a.btn.btn-outline-primary.btn-sm(href=`mailto:${enterpriseAccount.primary_contact.email}`)
+                i.fa.fa-envelope.mr-1
+                = t("Email Contact")
+              a.btn.btn-outline-success.btn-sm(href=l(`/admin/payments?q=${enterpriseAccount.user.email}`))
+                i.fa.fa-credit-card.mr-1
+                = t("View Payments")
+              a.btn.btn-outline-info.btn-sm(href=l(`/admin/users?q=${enterpriseAccount.user.email}`))
+                i.fa.fa-user.mr-1
+                = t("View User Account")
+              button.btn.btn-outline-warning.btn-sm(data-toggle="modal", data-target="#add-note-modal")
+                i.fa.fa-sticky-note.mr-1
+                = t("Add Note")
+              
+        // Workflow Actions
+        .card.mb-3
+          .card-header
+            h5.mb-0
+              i.fa.fa-tasks.mr-2
+              = t("Workflow Actions")
+          .card-body
+            .row
+              .col-md-12.mb-3
+                .form-group
+                  label= t("Current Stage")
+                  p.mb-2
+                    span.badge.badge-lg(
+                      class=enterpriseAccount.onboarding_status === 'completed' ? 'badge-success' : 
+                            enterpriseAccount.onboarding_status.includes('contract') ? 'badge-warning' :
+                            enterpriseAccount.onboarding_status.includes('payment') ? 'badge-info' : 'badge-secondary'
+                    )= titleize(humanize(enterpriseAccount.onboarding_status))
+                  small.text-muted
+                    = t("Progress: %s%", onboardingProgress)
+            
+            .row
+              .col-md-6
+                .form-group
+                  label= t("Quick Actions")
+                  .d-grid.gap-2
+                    form.ajax-form.d-inline(action=l(`/admin/enterprise/${enterpriseAccount._id}/advance`), method="POST", data-reload="true")
+                      button.btn.btn-success.btn-block(type="submit")
+                        i.fa.fa-arrow-right.mr-1
+                        = t("Advance to Next Stage")
+                    button.btn.btn-outline-info.btn-block(data-toggle="modal", data-target="#workflow-action-modal")
+                      i.fa.fa-cogs.mr-1
+                      = t("Trigger Workflow Action")
+              
+
+        // Timeline
+        .card.mb-3
+          .card-header
+            h5.mb-0
+              i.fa.fa-history.mr-2
+              = t("Timeline")
+          .card-body
+            if enterpriseAccount.timeline && enterpriseAccount.timeline.length > 0
+              each entry in enterpriseAccount.timeline.slice(-5).reverse()
+                .media.mb-3
+                  .media-object.mr-2
+                    i.fa.fa-circle.text-primary
+                  .media-body
+                    h6.mt-0.mb-1= titleize(humanize(entry.status))
+                    p.text-muted.mb-1= entry.notes
+                    small.text-muted
+                      = dayjs(entry.date).format("M/D/YY h:mm A")
+                      if entry.updated_by
+                        = ` - ${entry.updated_by}`
+            else
+              .text-center.text-muted.py-3
+                i.fa.fa-history.fa-2x.mb-2
+                p= t("No timeline entries")
+
+        // Recent Notes
+        .card.mb-3
+          .card-header
+            h5.mb-0
+              i.fa.fa-sticky-note.mr-2
+              = t("Recent Notes")
+          .card-body
+            if enterpriseAccount.notes && enterpriseAccount.notes.length > 0
+              each note in enterpriseAccount.notes.slice(-3).reverse()
+                .border-bottom.pb-2.mb-2
+                  p.mb-1= note.content
+                  small.text-muted
+                    = dayjs(note.created_at).format("M/D/YY h:mm A")
+                    = ` - ${note.created_by}`
+            else
+              .text-center.text-muted.py-3
+                i.fa.fa-sticky-note.fa-2x.mb-2
+                p= t("No notes yet")
+
+    // Add Note Modal
+    .modal.fade#add-note-modal(tabindex="-1", role="dialog")
+      .modal-dialog(role="document")
+        .modal-content
+          form.ajax-form(action=l(`/admin/enterprise/${enterpriseAccount._id}/notes`), method="POST", data-reload="true")
+            .modal-header
+              h5.modal-title= t("Add Note")
+              button.close(type="button", data-dismiss="modal")
+                span &times;
+            .modal-body
+              .form-group
+                label(for="note-type")= t("Note Type")
+                select#note-type.form-control(name="type", required)
+                  option(value="general")= t("General")
+                  option(value="technical")= t("Technical")
+                  option(value="billing")= t("Billing")
+                  option(value="support")= t("Support")
+              .form-group
+                label(for="note-content")= t("Note Content")
+                textarea#note-content.form-control(name="content", rows="4", required)
+            .modal-footer
+              button.btn.btn-secondary(type="button", data-dismiss="modal")= t("Cancel")
+              button.btn.btn-primary(type="submit")= t("Add Note")
+
+
+
+
+    // Workflow Action Modal
+    .modal.fade#workflow-action-modal(tabindex="-1", role="dialog")
+      .modal-dialog(role="document")
+        .modal-content
+          form.ajax-form(action=l(`/admin/enterprise/${enterpriseAccount._id}/workflow-action`), method="POST", data-reload="true")
+            .modal-header
+              h5.modal-title= t("Trigger Workflow Action")
+              button.close(type="button", data-dismiss="modal")
+                span &times;
+            .modal-body
+              .alert.alert-info
+                i.fa.fa-info-circle.mr-2
+                = t("Select a specific workflow action to execute for this enterprise account.")
+              
+              .form-group
+                label(for="workflow-action")= t("Action")
+                select#workflow-action.form-control(name="action", required)
+                  option(value="")= t("Select action...")
+                  option(value="send_proposal")= t("Send Proposal")
+                  option(value="generate_contract")= t("Generate Contract Document")
+                  option(value="approve_contract")= t("Approve Contract for Signature")
+                  option(value="send_for_signature")= t("Send Contract for Signature")
+                  option(value="initiate_contract")= t("Initiate Contract")
+                  option(value="setup_account")= t("Setup Account")
+                  option(value="complete_onboarding")= t("Complete Onboarding")
+              
+              .form-group
+                label(for="workflow-notes")= t("Notes (Optional)")
+                textarea#workflow-notes.form-control(name="notes", rows="3", placeholder=t("Add any notes about this workflow action..."))
+            
+            .modal-footer
+              button.btn.btn-secondary(type="button", data-dismiss="modal")= t("Cancel")
+              button.btn.btn-primary(type="submit")
+                i.fa.fa-cogs.mr-1
+                = t("Execute Action")
+
+    // JavaScript for signature modal

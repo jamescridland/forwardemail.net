@@ -1,114 +1,86 @@
-if users && users.length > 0
-  .table-responsive
-    table.table.table-striped.table-hover.mb-0
-      thead.thead-dark
-        tr
-          th.align-middle= t("Account")
-          th.align-middle= t("Plan")
-          th.align-middle.text-center= t("Domains")
-          th.align-middle.text-center= t("Revenue")
-          th.align-middle= t("Status")
-          th.align-middle= t("Created")
-          th.align-middle.text-center= t("Actions")
-      tbody
-        each user in users
+include ../../_sort-header
+include ../../_pagination
+
+.table-responsive
+  table.table.table-hover.table-bordered.table-sm
+    thead.thead-dark
+      tr
+        th(scope="col")
+          +sortHeader('company_name', 'Company', '#table-enterprise')
+        th(scope="col")
+          +sortHeader('primary_contact.email', 'Contact', '#table-enterprise')
+        th(scope="col")
+          +sortHeader('onboarding_status', 'Status', '#table-enterprise')
+        th(scope="col")
+          +sortHeader('domainCount', 'Domains', '#table-enterprise')
+        th(scope="col")
+          +sortHeader('userCount', 'Users', '#table-enterprise')
+        th(scope="col")
+          +sortHeader('aliasCount', 'Aliases', '#table-enterprise')
+        th(scope="col")
+          +sortHeader('totalRevenue', 'Revenue', '#table-enterprise')
+        th(scope="col")
+          +sortHeader('created_at', 'Created', '#table-enterprise')
+        th.text-center.align-middle(scope="col")= t("Actions")
+    tbody
+      if enterprises.length === 0
+        td.alert.alert-info(colspan="9")= t("No enterprise accounts exist for that search.")
+      else
+        each enterprise in enterprises
           tr
             td.align-middle
-              .d-flex.align-items-center
-                .me-3
-                  if user.avatar_url
-                    img.rounded-circle(src=user.avatar_url, alt=user.email, width="40", height="40")
-                  else
-                    .bg-primary.rounded-circle.d-flex.align-items-center.justify-content-center(style="width: 40px; height: 40px;")
-                      i.fa.fa-user.text-white
-                div
-                  strong.text-primary= user.email
-                  if user[config.passport.fields.organizationName]
-                    br
-                    small.text-muted
-                      i.fa.fa-building.me-1
-                      = user[config.passport.fields.organizationName]
-                  if user[config.passport.fields.givenName] || user[config.passport.fields.familyName]
-                    br
-                    small.text-muted
-                      = `${user[config.passport.fields.givenName] || ''} ${user[config.passport.fields.familyName] || ''}`.trim()
-            
+              strong= enterprise.company_name
+              if enterprise.user && enterprise.user[config.passport.fields.organizationName]
+                br
+                small.text-muted= enterprise.user[config.passport.fields.organizationName]
             td.align-middle
-              if user.plan === 'team'
-                span.badge.badge-primary.badge-lg
-                  i.fa.fa-users.me-1
-                  = t("Team")
-              else if user.plan === 'enhanced_protection'
-                span.badge.badge-success.badge-lg
-                  i.fa.fa-shield-alt.me-1
-                  = t("Enhanced Protection")
-              else
-                span.badge.badge-secondary= user.plan || 'free'
-            
-            td.align-middle.text-center
-              if user.domainCount > 0
-                span.badge.badge-info.badge-lg= user.domainCount
-                if user.domainCount > 5
+              if enterprise.primary_contact && enterprise.primary_contact.email
+                a(
+                  href=`mailto:${enterprise.primary_contact.email}`,
+                  target="_blank",
+                  rel="noopener noreferrer"
+                )= enterprise.primary_contact.email
+                if enterprise.primary_contact.name
                   br
-                  small.text-success
-                    i.fa.fa-star.me-1
-                    = t("High Volume")
-              else
-                span.text-muted= "0"
-            
-            td.align-middle.text-center
-              if user.totalRevenue > 0
-                strong.text-success= `$${(user.totalRevenue / 100).toLocaleString()}`
-                if user.recentPayments && user.recentPayments.length > 0
-                  br
-                  small.text-muted= `${user.recentPayments.length} payments`
-              else
-                span.text-muted= "$0"
-            
+                  small.text-muted= enterprise.primary_contact.name
+              else if enterprise.user && enterprise.user.email
+                a(
+                  href=`mailto:${enterprise.user.email}`,
+                  target="_blank",
+                  rel="noopener noreferrer"
+                )= enterprise.user.email
             td.align-middle
-              if user[config.userFields.isBanned]
-                span.badge.badge-danger
-                  i.fa.fa-ban.me-1
-                  = t("Banned")
-              else if !user[config.userFields.hasVerifiedEmail]
-                span.badge.badge-warning
-                  i.fa.fa-exclamation-triangle.me-1
-                  = t("Unverified")
-              else
-                span.badge.badge-success
-                  i.fa.fa-check.me-1
-                  = t("Active")
-            
+              - const statusClass = enterprise.onboarding_status === 'completed' ? 'success' : enterprise.onboarding_status === 'contract_signed' ? 'info' : enterprise.onboarding_status === 'inquiry_received' ? 'warning' : 'secondary'
+              span.badge(class=`badge-${statusClass}`)= titleize(humanize(enterprise.onboarding_status))
+            td.align-middle.text-center= enterprise.domainCount || 0
+            td.align-middle.text-center= enterprise.userCount || 0
+            td.align-middle.text-center= enterprise.aliasCount || 0
             td.align-middle
-              time.text-muted(datetime=new Date(user.created_at).toISOString())
-                = new Date(user.created_at).toLocaleDateString()
-            
-            td.align-middle.text-center
-              .btn-group.btn-group-sm
-                a.btn.btn-outline-primary.btn-sm(
-                  href=`/admin/users/${user._id}`,
-                  title=t("View Details")
-                )
-                  i.fa.fa-eye
-                if user.recentPayments && user.recentPayments.length > 0
-                  a.btn.btn-outline-success.btn-sm(
-                    href=`/admin/payments?user=${user._id}`,
-                    title=t("View Payments")
-                  )
-                    i.fa.fa-credit-card
-                if user.domains && user.domains.length > 0
-                  a.btn.btn-outline-info.btn-sm(
-                    href=`/admin/domains?user=${user._id}`,
-                    title=t("View Domains")
-                  )
-                    i.fa.fa-globe
-else
-  .text-center.py-5
-    .text-muted
-      i.fa.fa-search.fa-3x.mb-3
-      h4= t("No Enterprise Accounts Found")
-      if q
-        p= t("No accounts match your search criteria.")
-        a.btn.btn-primary(href="/admin/enterprise")= t("Clear Search")
-      else
-        p= t("There are currently no enterprise accounts in the system.")
+              if enterprise.totalRevenue && enterprise.totalRevenue > 0
+                = `$${(enterprise.totalRevenue / 100).toFixed(2)}`
+              else
+                span.text-muted $0
+            td.align-middle.dayjs(
+              data-time=new Date(enterprise.created_at).getTime()
+            )= dayjs(enterprise.created_at).format("M/D/YY h:mm A")
+            td.align-middle
+              .btn-group(role="group", aria-label=t("Actions"))
+                a.btn.btn-primary.btn-sm(
+                  href=l(`/admin/enterprise/${enterprise._id}`),
+                  data-toggle="tooltip",
+                  data-title=t("View Details")
+                ): i.fa.fa-fw.fa-eye
+                if enterprise.user
+                  a.btn.btn-secondary.btn-sm(
+                    href=l(`/admin/users?q=${enterprise.user.email}`),
+                    data-toggle="tooltip",
+                    data-title=t("Edit User")
+                  ): i.fa.fa-fw.fa-user-cog
+                if enterprise.totalRevenue && enterprise.totalRevenue > 0
+                  - const contactEmail = (enterprise.primary_contact && enterprise.primary_contact.email) || (enterprise.user && enterprise.user.email)
+                  a.btn.btn-info.btn-sm(
+                    href=l(`/admin/payments?q=${contactEmail}`),
+                    data-toggle="tooltip",
+                    data-title=t("View Payments")
+                  ): i.fa.fa-fw.fa-credit-card
++paginate('#table-enterprise')

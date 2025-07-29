@@ -1,0 +1,56 @@
+extends ../layout
+
+block content
+  .container.mt-3
+    .row
+      .col-12
+        .card.border-dark.d-block
+          h1.h5.card-header.text-center
+            = emoji("memo")
+            = " "
+            = t("Document Ready for Signature")
+          .card-body.p-0
+            a(href=config.urls.web)
+              img.img-fluid.d-block.align-top(
+                src=manifest("img/emails/welcome.gif"),
+                alt=""
+              )
+            .p-3
+              h1.h3.text-center!= t("Hello!")
+              p.card-text.text-center!= t("A document from %s requires your signature.", enterpriseAccount.company_name)
+              
+              .card.bg-light.mb-4
+                .card-body
+                  h5.card-title
+                    = emoji("page_facing_up")
+                    = " "
+                    = document.name
+                  p.card-text= t("This document is part of your enterprise email service setup with Forward Email.")
+                  if document.type
+                    span.badge.badge-info= titleize(humanize(document.type))
+
+              .alert.alert-info
+                h5.alert-heading
+                  = emoji("information_source")
+                  = " "
+                  = t("How to Sign")
+                ol.mb-0
+                  li= t("Click the 'Sign Document' button below")
+                  li= t("Review the document carefully")
+                  li= t("Add your signature where indicated")
+                  li= t("Submit the signed document")
+
+              .text-center.mt-4
+                a.btn.btn-lg.btn-primary(
+                  href=signingUrl,
+                  target="_blank",
+                  rel="noopener noreferrer"
+                )
+                  = emoji("fountain_pen")
+                  = " "
+                  = t("Sign Document")
+                
+                .mt-3
+                  p.small.text-muted!= t("Having trouble? Contact us at <a href='mailto:support@forwardemail.net'>support@forwardemail.net</a>")
+
+          .card-footer.small.text-muted.text-center= t("This document expires in 30 days. Please sign promptly to avoid delays.")

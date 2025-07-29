@@ -1,0 +1,259 @@
+extends ../../layout
+
+block body
+  .container-fluid.py-3
+    .row.mt-1
+      .col
+        include ../../_breadcrumbs
+
+    // Enterprise Navigation
+    .row.mb-3
+      .col
+        .card
+          .card-body
+            .d-flex.justify-content-between.align-items-center.flex-wrap
+              h5.mb-0
+                i.fa.fa-building.mr-2
+                = t("Enterprise Management")
+              .btn-group.mb-2
+                a.btn.btn-success(href=l("/admin/enterprise/dashboard"))
+                  i.fa.fa-tachometer-alt.mr-1
+                  = t("Dashboard")
+                a.btn.btn-outline-primary(href=l("/admin/enterprise/accounts"))
+                  i.fa.fa-users.mr-1
+                  = t("All Accounts")
+                a.btn.btn-info(href=l("/admin/enterprise/analytics"))
+                  i.fa.fa-chart-bar.mr-1
+                  = t("Analytics")
+
+    // Workflow Overview Metrics
+    .row.mb-3
+      .col
+        .d-flex.flex-wrap.rounded.border.bg-white.bg-themed.text-center
+          .p-3.p-md-3.d-flex.flex-column.flex-grow-1.justify-content-center
+            h2.h4.text-center= t("Total Accounts")
+            .display-4.font-weight-bold= totalAccounts.toLocaleString()
+          .p-3.p-md-4.d-flex.flex-column.flex-grow-1.justify-content-center
+            h2.h4.text-center= t("Active Onboarding")
+            .display-4.font-weight-bold= activeAccounts.toLocaleString()
+          .p-3.p-md-4.d-flex.flex-column.flex-grow-1.justify-content-center
+            h2.h4.text-center= t("Completed")
+            .display-4.font-weight-bold= completedAccounts.toLocaleString()
+          .p-3.p-md-4.d-flex.flex-column.flex-grow-1.justify-content-center
+            h2.h4.text-center= t("Conversion Rate")
+            .display-4.font-weight-bold= `${conversionRate}%`
+
+    // Quick Actions Bar
+    .row.mb-3
+      .col
+        .card
+          .card-body
+            .d-flex.justify-content-between.align-items-center.flex-wrap
+              h5.mb-0
+                i.fa.fa-bolt.mr-2
+                = t("Workflow Actions")
+              .btn-group.mb-2
+                button.btn.btn-primary.dropdown-toggle(data-toggle="dropdown")
+                  i.fa.fa-tasks.mr-1
+                  = t("Bulk Actions")
+                .dropdown-menu
+                  a.dropdown-item(href="#", data-toggle="modal", data-target="#bulk-status-modal")
+                    i.fa.fa-arrow-right.mr-2
+                    = t("Update Status")
+                  a.dropdown-item(href="#", data-toggle="modal", data-target="#bulk-reminder-modal")
+                    i.fa.fa-clock.mr-2
+                    = t("Set Reminders")
+                button.btn.btn-outline-success(onclick="location.reload()")
+                  i.fa.fa-refresh.mr-1
+                  = t("Refresh")
+                a.btn.btn-outline-info(href=l("/admin/enterprise/analytics"))
+                  i.fa.fa-chart-bar.mr-1
+                  = t("Analytics")
+
+    // Accounts Needing Attention
+    if needsAttention && needsAttention.length > 0
+      .row.mb-3
+        .col
+          .card.border-warning
+            .card-header.bg-warning.text-dark
+              h5.mb-0
+                i.fa.fa-exclamation-triangle.mr-2
+                = t("Accounts Needing Attention")
+                span.badge.badge-dark.ml-2= needsAttention.length
+            .card-body
+              .table-responsive
+                table.table.table-sm.mb-0
+                  thead
+                    tr
+                      th= t("Company")
+                      th= t("Status")
+                      th= t("Issue")
+                      th= t("Actions")
+                  tbody
+                    each account in needsAttention.slice(0, 5)
+                      tr
+                        td
+                          a(href=l(`/admin/enterprise/accounts/${account._id}`))= account.company_name
+                        td
+                          span.badge.badge-secondary= titleize(humanize(account.onboarding_status))
+                        td.text-warning
+                          if account.contract && account.contract.renewal_date
+                            = t("Contract renewal needed")
+                          else if account.payment_info && account.payment_info.next_billing_date
+                            = t("Payment overdue")
+                          else
+                            = t("Requires follow-up")
+                        td
+                          .btn-group-sm
+                            a.btn.btn-sm.btn-outline-primary(href=l(`/admin/enterprise/accounts/${account._id}`))
+                              i.fa.fa-eye.mr-1
+                              = t("View")
+
+    // Workflow Pipeline
+    .row.mb-3
+      .col
+        .card
+          .card-header
+            h5.mb-0
+              i.fa.fa-stream.mr-2
+              = t("Onboarding Pipeline")
+          .card-body.p-0
+            .table-responsive
+              table.table.table-hover.mb-0
+                thead.thead-light
+                  tr
+                    th.text-center= t("Stage")
+                    th.text-center= t("Count")
+                    th= t("Accounts")
+                    th.text-center= t("Actions")
+                tbody
+                  each stage in workflowData
+                    tr(class=stage.count > 0 ? '' : 'text-muted')
+                      td.text-center
+                        .d-flex.align-items-center.justify-content-center
+                          .workflow-stage-indicator(class=stage.count > 0 ? 'active' : 'inactive')
+                          .ml-2
+                            strong= titleize(humanize(stage.status))
+                      td.text-center
+                        if stage.count > 0
+                          span.badge.badge-primary.badge-lg= stage.count
+                        else
+                          span.text-muted= "0"
+                      td
+                        if stage.accounts && stage.accounts.length > 0
+                          .d-flex.flex-wrap
+                            each account in stage.accounts.slice(0, 3)
+                              .mr-2.mb-1
+                                a.badge.badge-outline-secondary.text-decoration-none(
+                                  href=l(`/admin/enterprise/accounts/${account._id}`),
+                                  title=account.company_name
+                                )= account.company_name.length > 15 ? `${account.company_name.slice(0, 15)}...` : account.company_name
+                                if account.is_priority_account
+                                  i.fa.fa-star.text-warning.ml-1
+                            if stage.accounts.length > 3
+                              span.text-muted= `+${stage.accounts.length - 3} more`
+                        else
+                          span.text-muted= t("No accounts")
+                      td.text-center
+                        if stage.count > 0
+                          .btn-group-sm
+                            button.btn.btn-sm.btn-outline-primary.bulk-action-btn(
+                              data-stage=stage.status,
+                              data-toggle="tooltip",
+                              title=t("Bulk actions for this stage")
+                            )
+                              i.fa.fa-tasks
+                        else
+                          span.text-muted= "-"
+
+    // Recent Activity
+    .row.mb-3
+      .col
+        .card
+          .card-header
+            h5.mb-0
+              i.fa.fa-history.mr-2
+              = t("Recent Activity")
+          .card-body
+            if recentChanges && recentChanges.length > 0
+              each change in recentChanges.slice(0, 10)
+                - const latestEntry = change.timeline[change.timeline.length - 1]
+                .media.mb-3
+                  .media-object.mr-3
+                    i.fa.fa-circle.text-primary
+                  .media-body
+                    .d-flex.justify-content-between.align-items-start
+                      div
+                        h6.mt-0.mb-1
+                          a(href=l(`/admin/enterprise/accounts/${change._id}`))= change.company_name
+                        p.mb-1= latestEntry.notes
+                        small.text-muted
+                          = dayjs(latestEntry.date).fromNow()
+                          if latestEntry.updated_by
+                            = ` by ${latestEntry.updated_by}`
+                      span.badge.badge-secondary= titleize(humanize(latestEntry.status))
+            else
+              .text-center.text-muted.py-3
+                i.fa.fa-history.fa-2x.mb-2
+                p= t("No recent activity")
+
+    // Bulk Status Update Modal
+    .modal.fade#bulk-status-modal(tabindex="-1", role="dialog")
+      .modal-dialog(role="document")
+        .modal-content
+          form.ajax-form(action=l("/admin/enterprise/workflow/bulk-update"), method="POST")
+            .modal-header
+              h5.modal-title= t("Bulk Status Update")
+              button.close(type="button", data-dismiss="modal")
+                span &times;
+            .modal-body
+              .form-group
+                label= t("Select Accounts")
+                p.text-muted= t("Select accounts to update from the pipeline above")
+                #selected-accounts-list
+                  p.text-muted= t("No accounts selected")
+              .form-group
+                label(for="bulk-status")= t("New Status")
+                select#bulk-status.form-control(name="newStatus", required)
+                  option(value="")= t("Select status...")
+                  option(value="discovery_in_progress")= t("Discovery In Progress")
+                  option(value="proposal_sent")= t("Proposal Sent")
+                  option(value="proposal_under_review")= t("Proposal Under Review")
+                  option(value="contract_negotiation")= t("Contract Negotiation")
+                  option(value="contract_signed")= t("Contract Signed")
+                  option(value="payment_pending")= t("Payment Pending")
+                  option(value="payment_received")= t("Payment Received")
+                  option(value="account_setup")= t("Account Setup")
+                  option(value="go_live")= t("Go Live")
+                  option(value="completed")= t("Completed")
+              .form-group
+                label(for="bulk-notes")= t("Notes")
+                textarea#bulk-notes.form-control(name="notes", rows="3")
+            .modal-footer
+              button.btn.btn-secondary(type="button", data-dismiss="modal")= t("Cancel")
+              button.btn.btn-primary(type="submit")= t("Update Status")
+
+    // Custom Styles
+    style.
+      .workflow-stage-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+      }
+      .workflow-stage-indicator.active {
+        background-color: #007bff;
+      }
+      .workflow-stage-indicator.inactive {
+        background-color: #6c757d;
+      }
+      .badge-outline-secondary {
+        color: #6c757d;
+        border: 1px solid #6c757d;
+        background-color: transparent;
+      }
+      .badge-outline-secondary:hover {
+        color: #fff;
+        background-color: #6c757d;
+      }
+

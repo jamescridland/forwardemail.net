@@ -39,20 +39,19 @@ async function list(ctx) {
       );
     }
 
-    // Search in enum/categorical fields with exact and partial matches
+    // Search in enum/categorical fields with exact matches (faster than regex)
     for (const field of PAYMENT_ENUM_FIELDS) {
-      query.$or.push(
-        { [field]: { $regex: ctx.query.q, $options: 'i' } },
-        { [field]: { $regex: _.escapeRegExp(ctx.query.q), $options: 'i' } }
-      );
+      // Try exact match first (case-insensitive)
+      const exactMatch = ctx.query.q.toLowerCase();
+      query.$or.push({ [field]: exactMatch });
+      
+      // Also add partial regex match for flexibility
+      query.$or.push({ [field]: { $regex: ctx.query.q, $options: 'i' } });
     }
 
-    // Search by user email
+    // Search by user email - optimized query
     const users = await Users.find({
-      $or: [
-        { email: { $regex: ctx.query.q, $options: 'i' } },
-        { email: { $regex: _.escapeRegExp(ctx.query.q), $options: 'i' } }
-      ]
+      email: { $regex: ctx.query.q, $options: 'i' }
     })
       .select('_id')
       .lean()
@@ -99,13 +98,15 @@ async function list(ctx) {
         from: 'users',
         localField: 'user',
         foreignField: '_id',
+        pipeline: [
+          { $project: { email: 1, plan: 1 } } // Only select needed fields
+        ],
         as: 'user'
       }
     },
     {
-      $unwind: {
-        path: '$user',
-        preserveNullAndEmptyArrays: true
+      $addFields: {
+        user: { $arrayElemAt: ['$user', 0] } // More efficient than $unwind
       }
     },
     {

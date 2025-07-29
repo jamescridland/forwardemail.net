@@ -94,16 +94,46 @@ router
   .get('/emails/:id', web.admin.emails.retrieve)
   .put('/emails/:id', web.admin.emails.update)
   .delete('/emails/:id', web.admin.emails.remove)
-  
+
   // payments
   .get('/payments', paginate.middleware(10, 50), web.admin.payments.list)
   .get('/payments/:id', web.admin.payments.retrieve)
   .post('/payments/:id/refund', web.admin.payments.refund)
   .post('/free-credit', web.admin.payments.freeCredit)
-  
+
   // enterprise
-  .get('/enterprise', web.admin.enterprise.dashboard)
+  .get('/enterprise', paginate.middleware(10, 50), web.admin.enterprise.list)
   .get('/enterprise/dashboard', web.admin.enterprise.dashboard)
-  .get('/enterprise/accounts', paginate.middleware(10, 50), web.admin.enterprise.list);
+  .get(
+    '/enterprise/accounts',
+    paginate.middleware(10, 50),
+    web.admin.enterprise.list
+  )
+  .post('/enterprise/accounts', web.admin.enterprise.create)
+  .get('/enterprise/:id', web.admin.enterpriseAccount.retrieve)
+  .put('/enterprise/:id', web.admin.enterpriseAccount.update)
+  .post('/enterprise/:id/notes', web.admin.enterpriseAccount.addNote)
+  .post(
+    '/enterprise/:id/workflow-action',
+    web.admin.enterpriseAccount.triggerWorkflowAction
+  )
+
+  // enterprise workflow
+  .get('/enterprise/workflow', web.admin.enterpriseWorkflow.dashboard)
+  .post(
+    '/enterprise/workflow/bulk-update',
+    web.admin.enterpriseWorkflow.bulkUpdateStatus
+  )
+  .post(
+    '/enterprise/:id/advance',
+    web.admin.enterpriseWorkflow.moveToNextStage
+  )
+
+  // enterprise signatures (DocuSign integration)
+  .post('/enterprise/:id/signatures', web.admin.enterpriseSignatures.initiateSignature)
+  .get('/enterprise/:id/signatures/:documentId', web.admin.enterpriseSignatures.getSignatureStatus)
+  .post('/enterprise/signatures/webhook/:provider', web.admin.enterpriseSignatures.handleSignatureWebhook)
+
+;
 
 module.exports = router;

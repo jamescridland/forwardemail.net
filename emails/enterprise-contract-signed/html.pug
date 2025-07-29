@@ -1,0 +1,75 @@
+extends ../layout
+
+block content
+  .container.mt-3
+    .row
+      .col-12
+        .card.border-dark.d-block
+          h1.h5.card-header.text-center
+            = emoji("tada")
+            = " "
+            = t("Welcome to Forward Email Enterprise!")
+          .card-body.p-0
+            a(href=config.urls.web)
+              img.img-fluid.d-block.align-top(
+                src=manifest("img/emails/welcome.gif"),
+                alt=""
+              )
+            .p-3
+              h1.h3.text-center!= t("Congratulations %s!", account.primary_contact.name)
+              p.card-text.text-center!= t("Your enterprise contract has been signed and your account is being set up.")
+              
+              .row.mt-4
+                .col-md-6
+                  h4= t("What's Next")
+                  ol.list-unstyled
+                    li.mb-2
+                      span.badge.badge-primary.mr-2 1
+                      = t("Account setup and configuration")
+                    li.mb-2
+                      span.badge.badge-secondary.mr-2 2
+                      = t("Domain verification and DNS setup")
+                    li.mb-2
+                      span.badge.badge-secondary.mr-2 3
+                      = t("User migration assistance")
+                    li.mb-2
+                      span.badge.badge-secondary.mr-2 4
+                      = t("Team training and go-live")
+                .col-md-6
+                  h4= t("Your Benefits")
+                  ul.list-unstyled
+                    li.mb-2
+                      = emoji("white_check_mark")
+                      = " "
+                      = t("Enterprise plan activated")
+                    li.mb-2
+                      = emoji("white_check_mark")
+                      = " "
+                      = t("Priority support access")
+                    li.mb-2
+                      = emoji("white_check_mark")
+                      = " "
+                      = t("Dedicated account manager")
+                    li.mb-2
+                      = emoji("white_check_mark")
+                      = " "
+                      = t("Advanced security features")
+
+              .alert.alert-info.mt-4
+                h5.alert-heading
+                  = emoji("information_source")
+                  = " "
+                  = t("Important Information")
+                p.mb-0!= t("Your dedicated account manager will contact you within 24 hours to begin the setup process. In the meantime, you can access your enhanced account features.")
+
+              .text-center.mt-4
+                a.btn.btn-lg.btn-primary(
+                  href=`${config.urls.web}/${locale}/my-account`
+                )
+                  = t("Access My Account")
+                = " "
+                a.btn.btn-lg.btn-outline-dark(
+                  href=`${config.urls.web}/${locale}/help?subject=Enterprise%20Setup%20-%20${encodeURIComponent(account.company_name)}`
+                )
+                  = t("Contact Support")
+          .card-footer.small.text-muted.text-center= t("Thank you for choosing Forward Email Enterprise. We're excited to work with you!")

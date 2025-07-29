@@ -1,0 +1,81 @@
+extends ../layout
+
+block content
+  .container.mt-3
+    .row
+      .col-12
+        .card.border-dark.d-block
+          h1.h5.card-header.text-center
+            if signatureInfo.status === 'signed'
+              = emoji("white_check_mark")
+              = " "
+              = t("Document Successfully Signed!")
+            else
+              = emoji("x")
+              = " "
+              = t("Document Signature Declined")
+          .card-body.p-0
+            a(href=config.urls.web)
+              img.img-fluid.d-block.align-top(
+                src=manifest(signatureInfo.status === 'signed' ? "img/emails/domain-verified.gif" : "img/emails/alert.gif"),
+                alt=""
+              )
+            .p-3
+              h1.h3.text-center!= t("Update for %s", enterpriseAccount.company_name)
+              
+              if signatureInfo.status === 'signed'
+                p.card-text.text-center!= t("Great news! The document '%s' has been successfully signed.", document.name)
+                
+                .alert.alert-success
+                  h5.alert-heading
+                    = emoji("party")
+                    = " "
+                    = t("What's Next?")
+                  p.mb-0!= t("We'll now proceed with the next steps in your enterprise setup. Your account manager will be in touch within 24 hours.")
+                  
+                .card.bg-light.mb-4
+                  .card-body
+                    h5.card-title
+                      = emoji("page_facing_up")
+                      = " "
+                      = document.name
+                    p.card-text= t("Signed successfully")
+                    span.badge.badge-success= t("Completed")
+                    if signatureInfo.signedDocumentUrl
+                      .mt-2
+                        a.btn.btn-sm.btn-outline-primary(
+                          href=signatureInfo.signedDocumentUrl,
+                          target="_blank",
+                          rel="noopener noreferrer"
+                        )
+                          = emoji("download")
+                          = " "
+                          = t("Download Signed Copy")
+
+                .text-center.mt-4
+                  a.btn.btn-lg.btn-primary(
+                    href=`${config.urls.web}/${locale}/my-account`
+                  )
+                    = t("Access My Account")
+                  = " "
+                  a.btn.btn-lg.btn-outline-dark(
+                    href=`${config.urls.web}/${locale}/help?subject=Enterprise%20Setup%20-%20${encodeURIComponent(enterpriseAccount.company_name)}`
+                  )
+                    = t("Contact Support")
+              else
+                p.card-text.text-center!= t("The document '%s' signature was declined.", document.name)
+                
+                .alert.alert-warning
+                  h5.alert-heading
+                    = emoji("warning")
+                    = " "
+                    = t("Need Assistance?")
+                  p.mb-0!= t("No problem! Our team will reach out to discuss alternative options or address any concerns you may have.")
+                
+                .text-center.mt-4
+                  a.btn.btn-lg.btn-primary(
+                    href=`${config.urls.web}/${locale}/help?subject=Signature%20Assistance%20-%20${encodeURIComponent(enterpriseAccount.company_name)}`
+                  )
+                    = t("Contact Support")
+
+          .card-footer.small.text-muted.text-center= t("Thank you for your business. We're here to help with any questions.")
